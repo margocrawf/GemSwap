@@ -533,12 +533,12 @@ class Object
     Shader* shader;
     Mesh* mesh;
     vec2 position;
-    vec2 scaling;
     float orientation;
-    std::string gemType;
 
     public:
+        vec2 scaling;
         vec2 index;
+        std::string gemType;
         Object( Mesh* m, vec2 pos = vec2(0.0, 0.0), vec2 sca = vec2(1.0, 1.0),
                 float ori=0.0, vec2 i = vec2(0,0)) {
             mesh = m;
@@ -685,8 +685,12 @@ public:
 
     void DeleteShape(int xInd, int yInd) {
         Object* o = objects[yInd][xInd];
+        o->gemType = "exiting";
+        /*
         objects[yInd][xInd] = new Object(voidMesh, o->getPos(), vec2(xscale, yscale), 0.0, o->index);
         delete o;
+        */
+
     }
 
     void pulseHearts(double t, double dt) {
@@ -700,6 +704,14 @@ public:
                 Object* o = objects[i][j];
                 if (o->getGemType() == "star") {
                     o->Move( vec2(0,0), vec2(0,0), dt*20.0);
+                }
+                if (o->getGemType() == "exiting") {
+                    if ((o->scaling.x > 0.002) and (o->scaling.y > 0.002)) {
+                        o->Move( vec2(0,0), vec2(-0.002, -0.002), dt*20);
+                    } else {
+                        objects[i][j] = new Object(voidMesh, o->getPos(), vec2(xscale, yscale), 0.0, o->index);
+                        delete o;
+                    }
                 }
             }
         }
