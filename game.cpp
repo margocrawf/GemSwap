@@ -18,6 +18,7 @@
 #include <GL/freeglut.h>	// must be downloaded unless you have an Apple
 #endif
 
+
 unsigned int windowWidth = 512, windowHeight = 512;
 
 bool keyboardState[256];
@@ -339,7 +340,9 @@ public:
 
 		// vertex coordinates: vbo -> Attrib Array 0 -> vertexPosition of the vertex shader
 		glBindBuffer(GL_ARRAY_BUFFER, vbo); // make it active, it is an array
-		static float vertexCoords[] = { 0, 0, 1, 0, 0, 1 };	// vertex data on the CPU
+		static float vertexCoords[] = { -.9, .865,
+                                         .9, .865,
+                                         0, -.865 };	// vertex data on the CPU
 
 		glBufferData(GL_ARRAY_BUFFER,	// copy to the GPU
 			sizeof(vertexCoords),	// size of the vbo in bytes
@@ -616,6 +619,7 @@ class Grid {
     Material* starMat;
     Material* hexMat;
     Material* sqMat;
+    Material* trMat;
     Material* voidMat;
     Mesh* voidMesh;
     float xscale;
@@ -650,6 +654,9 @@ public:
 
         sqMat = new Material(shader, vec4(1, .5, 0));
         meshes.push_back(new Mesh(sqMat, new Quad(), "quad"));
+
+        trMat = new Material(shader, vec4(.5,0,1));
+        meshes.push_back(new Mesh(trMat, new Triangle(), "triangle"));
 
         voidMat = new Material(shader, vec4(0,0,0));
         voidMesh = new Mesh(voidMat, new Triangle(), "void");
@@ -867,6 +874,7 @@ void onIdle( ) {
 
 int main(int argc, char * argv[]) 
 {
+    srand(time(NULL));
 	glutInit(&argc, argv);
 #if !defined(__APPLE__)
 	glutInitContextVersion(majorVersion, minorVersion);
