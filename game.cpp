@@ -375,7 +375,10 @@ public:
         glGenBuffers(1, &vbo);
 
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        static float vertexCoords[] = { 0, 0, 1, 0, 0, 1, 1, 1};
+        static float vertexCoords[] = { -.8, -.8,
+                                        -.8, .8,
+                                        .8, -.8,
+                                        .8, .8};
         
 		glBufferData(GL_ARRAY_BUFFER, sizeof(vertexCoords), vertexCoords, GL_STATIC_DRAW); 
 		glEnableVertexAttribArray(0);
@@ -612,6 +615,7 @@ class Grid {
     Material* heartMat;
     Material* starMat;
     Material* hexMat;
+    Material* sqMat;
     Material* voidMat;
     Mesh* voidMesh;
     float xscale;
@@ -640,9 +644,12 @@ public:
         starMat = new Material(shader, vec4(1, 1, 0));
         meshes.push_back(new Mesh(starMat, new Star(), "star"));
 
-        hexMat = new Material(shader, vec4(0,0,1));
+        hexMat = new Material(shader, vec4(0,.4,.8));
         Mesh* hexMesh = new Mesh(hexMat, new Hex(), "hex");
         meshes.push_back(hexMesh);
+
+        sqMat = new Material(shader, vec4(1, .5, 0));
+        meshes.push_back(new Mesh(sqMat, new Quad(), "quad"));
 
         voidMat = new Material(shader, vec4(0,0,0));
         voidMesh = new Mesh(voidMat, new Triangle(), "void");
@@ -711,6 +718,7 @@ public:
                     } else {
                         objects[i][j] = new Object(voidMesh, o->getPos(), vec2(xscale, yscale), 0.0, o->index);
                         delete o;
+                        Skyfall(j,i);
                     }
                 }
             }
@@ -720,26 +728,34 @@ public:
         selected = sel;
     }
 
-    void swap(vec2 sub) {
-        Object* selOb = objects[selected.y][selected.x];
+    void swap_sub(vec2 sub) {
+        swap(selected, sub);
+    }
+
+    void swap(vec2 sel, vec2 sub) {
+        Object* selOb = objects[sel.y][sel.x];
         Object* subOb = objects[sub.y][sub.x];
         vec2 diff = vec2( (selOb->getPos().x - subOb->getPos().x), (selOb->getPos().y - subOb->getPos().y) );
         selOb->Move(vec2(-diff.x, -diff.y), vec2(0,0), 0.0);
         subOb->Move(diff, vec2(0,0), 0.0);
-        objects[selected.y][selected.x] = subOb;
+        objects[sel.y][sel.x] = subOb;
         objects[sub.y][sub.x] = selOb;
     }
-
-    /*
-    Object* left(Object* ob) {
-    }
-    */
 
 
     bool Legal(Object* selOb, Object* subOb) {
         return true;
     }
 
+    void Skyfall(int col, int row) {
+        for (int i = row; i < objects[row].size()-1; i++) {
+            swap(vec2(col, i), vec2(col, i+1));
+        }
+        Object* orig = objects[objects.size()-1][col];
+        Mesh* mesh = meshes[(rand() % meshes.size())];
+        objects[objects.size()-1][col] = new Object(mesh, orig->getPos(), vec2(orig->scaling.x, orig->scaling.y), 0.0, vec2(objects.size()-1, col));
+        delete orig;
+    }
 
 };
 
@@ -818,7 +834,7 @@ void onMouse(int button, int state, int xOrig, int yOrig) {
         gGrid->set_selected(vec2(xIndex,yIndex));
     }
     else if ((button == GLUT_LEFT_BUTTON) and (state == GLUT_UP)){
-        gGrid->swap(vec2(xIndex,yIndex));
+        gGrid->swap_sub(vec2(xIndex,yIndex));
     }
 }
 
