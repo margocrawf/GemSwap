@@ -754,27 +754,26 @@ public:
     bool contains_three(std::vector<std::vector<vec2>> triples) {
         for (int i = 0; i < triples.size(); i++) {
             try {
-                printf("testing...\n");
                 std::vector<vec2> trip = triples[i];
-                Object* o1 = objects[trip[0].y][trip[0].x];
-                Object* o2 = objects[trip[1].y][trip[1].x];
-                Object* o3 = objects[trip[2].y][trip[2].x];
+                Object* o1 = objects.at(trip[0].y).at(trip[0].x);
+                Object* o2 = objects.at(trip[1].y).at(trip[1].x);
+                Object* o3 = objects.at(trip[2].y).at(trip[2].x);
+                if ((o1->gemType == o2->gemType) and (o1->gemType == o3->gemType)) {
+                    return true;
+                }
                 printf("%f; %f;\n %f; %f;\n %f; %f\n", o1->index.x, o1->index.y, o2->index.x, o2->index.y, o3->index.x, o3->index.y);
             } catch (const std::out_of_range& oor) {
-               printf("oop, out of bounds\n");
-           } catch (int n) {
-               printf("%i", n);
-           } catch (...) {
-               printf("somthin else");
-           }
+                // nothing to do here, just means that we are near the edge
+            }
         }
-        return true;
+        printf("nothing was matched");
+        return false;
     }
 
     bool Legal(Object* selOb, Object* subOb) {
         vec2 pos1 = selOb->index;
         vec2 pos2 = subOb->index;
-        if (pos1.x == pos2.x) {
+        if ((pos1.x == pos2.x) and (abs(pos1.y - pos2.y) < 2)) {
             printf("same x\n");
             vec2 hi = vec2(pos1.x, std::max(pos1.y, pos2.y));
             vec2 lo = vec2(pos1.x, std::min(pos1.y, pos2.y));
@@ -792,8 +791,17 @@ public:
                                                       {lo, vec2(lo.x-1, lo.y), vec2(lo.x-2, lo.y)}
             };
             return contains_three(triples);
+        } else if ( (pos1.y == pos2.y) and (abs(pos1.x - pos2.x) < 2)) {
+            printf("same y\n");
+            vec2 hi = vec2(std::max(pos1.x, pos2.x), pos1.y );
+            vec2 lo = vec2(std::min(pos1.x, pos2.x), pos1.y );
+            printf("hi: %f, %f\n", hi.x, hi.y);
+            printf("lo: %f, %f\n", lo.x, lo.y);
+            return true;
+
+        } else {
+            return false;
         }
-        return true;
     }
 
     void Skyfall(int col, int row) {
