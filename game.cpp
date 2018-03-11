@@ -604,10 +604,6 @@ class Object
             Draw();
         }
 
-        std::string getGemType() {
-            return gemType;
-        }
-
         vec2 getPos() {
             return position;
         }
@@ -712,10 +708,10 @@ public:
         for ( int i = 0; i < objects.size(); i++) {
             for (int j = 0; j < objects[i].size(); j++ ) {
                 Object* o = objects[i][j];
-                if (o->getGemType() == "star") {
+                if (o->gemType == "star") {
                     o->Move( vec2(0,0), vec2(0,0), dt*20.0);
                 }
-                if (o->getGemType() == "exiting") {
+                if (o->gemType == "exiting") {
                     if ((o->scaling.x > 0.002) and (o->scaling.y > 0.002)) {
                         o->Move( vec2(0,0), vec2(-0.002, -0.002), dt*20);
                     } else {
@@ -761,12 +757,11 @@ public:
                 if ((o1->gemType == o2->gemType) and (o1->gemType == o3->gemType)) {
                     return true;
                 }
-                printf("%f; %f;\n %f; %f;\n %f; %f\n", o1->index.x, o1->index.y, o2->index.x, o2->index.y, o3->index.x, o3->index.y);
             } catch (const std::out_of_range& oor) {
                 // nothing to do here, just means that we are near the edge
             }
         }
-        printf("nothing was matched");
+        printf("nothing was matched\n");
         return false;
     }
 
@@ -774,11 +769,8 @@ public:
         vec2 pos1 = selOb->index;
         vec2 pos2 = subOb->index;
         if ((pos1.x == pos2.x) and (abs(pos1.y - pos2.y) < 2)) {
-            printf("same x\n");
             vec2 hi = vec2(pos1.x, std::max(pos1.y, pos2.y));
             vec2 lo = vec2(pos1.x, std::min(pos1.y, pos2.y));
-            printf("hi: %f, %f\n", hi.x, hi.y);
-            printf("lo: %f, %f\n", lo.x, lo.y);
             std::vector<std::vector<vec2>> triples = {{hi, lo, vec2(hi.x, hi.y+1)},
                                                       {hi, vec2(hi.x, hi.y+1), vec2(hi.x, hi.y+2)},
                                                       {hi, lo, vec2(hi.x, lo.y-1)},
@@ -792,12 +784,19 @@ public:
             };
             return contains_three(triples);
         } else if ( (pos1.y == pos2.y) and (abs(pos1.x - pos2.x) < 2)) {
-            printf("same y\n");
             vec2 hi = vec2(std::max(pos1.x, pos2.x), pos1.y );
             vec2 lo = vec2(std::min(pos1.x, pos2.x), pos1.y );
-            printf("hi: %f, %f\n", hi.x, hi.y);
-            printf("lo: %f, %f\n", lo.x, lo.y);
-            return true;
+            std::vector<std::vector<vec2>> triples = {{hi, lo, vec2(hi.x+1, hi.y)},
+                                                      {hi, vec2(hi.x+1, hi.y), vec2(hi.x+2, hi.y)},
+                                                      {hi, lo, vec2(lo.x-1, lo.y)},
+                                                      {lo, vec2(lo.x-1, lo.y), vec2(lo.x-2, lo.y)},
+                                                      {hi, vec2(hi.x, hi.y+1), vec2(hi.x, hi.y-1)},
+                                                      {hi, vec2(hi.x, hi.y+1), vec2(hi.x, hi.y+2)},
+                                                      {hi, vec2(hi.x, hi.y-1), vec2(hi.x, hi.y-2)},
+                                                      {lo, vec2(lo.x, lo.y+1), vec2(lo.x, lo.y-1)},
+                                                      {lo, vec2(lo.x, lo.y+1), vec2(lo.x, lo.y+2)},
+                                                  {lo, vec2(lo.x, lo.y-1), vec2(lo.x, lo.y-2)}};
+            return contains_three(triples);
 
         } else {
             return false;
