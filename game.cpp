@@ -429,6 +429,44 @@ public:
     }
 };
 
+class Cross : public Geometry
+{
+    unsigned int vbo;
+public:
+    Cross() {
+        glBindVertexArray(vao);
+
+        glGenBuffers(1, &vbo);
+
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        static float vertexCoords[] = { 0, 0,
+                                        0.9, 0.2,
+                                        0.2,0.2,
+                                        0.2, 0.9,
+                                        -0.2, 0.9,
+                                        -0.2, 0.2,
+                                        -0.9, 0.2,
+                                        -0.9, -0.2,
+                                        -0.2, -0.2,
+                                        -0.2, -0.9,
+                                        0.2, -0.9,
+                                        0.2, -0.2,
+                                        0.9, -0.2,
+                                        0.9, 0.2};
+
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertexCoords), vertexCoords, GL_STATIC_DRAW); 
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+
+    }
+
+    void Draw() {
+        glBindVertexArray(vao);
+        glDrawArrays(GL_TRIANGLE_FAN, 0, 14); 
+    }
+};
+
+
 class Star : public Geometry
 {
     unsigned int vbo;
@@ -619,6 +657,7 @@ class Grid {
     Material* hexMat;
     Material* sqMat;
     Material* trMat;
+    Material* crMat;
     Material* voidMat;
     Mesh* voidMesh;
     float xscale;
@@ -654,6 +693,9 @@ public:
 
         trMat = new Material(shader, vec4(.5,0,1));
         meshes.push_back(new Mesh(trMat, new Triangle(), "triangle"));
+
+        crMat = new Material(shader, vec4(0,1,.5));
+        meshes.push_back(new Mesh(crMat, new Cross(), "cross"));
 
         voidMat = new Material(shader, vec4(0,0,0));
         voidMesh = new Mesh(voidMat, new Triangle(), "void");
@@ -748,6 +790,7 @@ public:
     }
 
     bool contains_three(std::vector<std::vector<vec2>> triples) {
+        bool foundThree = false;
         for (int i = 0; i < triples.size(); i++) {
             try {
                 std::vector<vec2> trip = triples[i];
@@ -755,20 +798,22 @@ public:
                 Object* o2 = objects.at(trip[1].y).at(trip[1].x);
                 Object* o3 = objects.at(trip[2].y).at(trip[2].x);
                 if ((o1->gemType == o2->gemType) and (o1->gemType == o3->gemType)) {
-                    return true;
+                    DeleteShape(o1->index.x, o1->index.y);
+                    DeleteShape(o2->index.x, o2->index.y);
+                    DeleteShape(o3->index.x, o3->index.y);
+                    foundThree = true;
                 }
             } catch (const std::out_of_range& oor) {
                 // nothing to do here, just means that we are near the edge
             }
         }
-        printf("nothing was matched\n");
-        return false;
+        return foundThree;
     }
 
     bool Legal(Object* selOb, Object* subOb) {
         vec2 pos1 = selOb->index;
         vec2 pos2 = subOb->index;
-        if ((pos1.x == pos2.x) and (abs(pos1.y - pos2.y) < 2)) {
+        if ((pos1.x == pos2.x) and (abs(pos1.y - pos2.y) == 1)) {
             vec2 hi = vec2(pos1.x, std::max(pos1.y, pos2.y));
             vec2 lo = vec2(pos1.x, std::min(pos1.y, pos2.y));
             std::vector<std::vector<vec2>> triples = {{hi, lo, vec2(hi.x, hi.y+1)},
@@ -783,7 +828,7 @@ public:
                                                       {lo, vec2(lo.x-1, lo.y), vec2(lo.x-2, lo.y)}
             };
             return contains_three(triples);
-        } else if ( (pos1.y == pos2.y) and (abs(pos1.x - pos2.x) < 2)) {
+        } else if ( (pos1.y == pos2.y) and (abs(pos1.x - pos2.x) == 1)) {
             vec2 hi = vec2(std::max(pos1.x, pos2.x), pos1.y );
             vec2 lo = vec2(std::min(pos1.x, pos2.x), pos1.y );
             std::vector<std::vector<vec2>> triples = {{hi, lo, vec2(hi.x+1, hi.y)},
@@ -795,7 +840,7 @@ public:
                                                       {hi, vec2(hi.x, hi.y-1), vec2(hi.x, hi.y-2)},
                                                       {lo, vec2(lo.x, lo.y+1), vec2(lo.x, lo.y-1)},
                                                       {lo, vec2(lo.x, lo.y+1), vec2(lo.x, lo.y+2)},
-                                                  {lo, vec2(lo.x, lo.y-1), vec2(lo.x, lo.y-2)}};
+                                                      {lo, vec2(lo.x, lo.y-1), vec2(lo.x, lo.y-2)}};
             return contains_three(triples);
 
         } else {
