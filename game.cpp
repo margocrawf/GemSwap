@@ -5,6 +5,9 @@
 #include <math.h>
 #include <vector>
 #include <string>
+#include <algorithm>
+#include <exception>
+#include <stdexcept>
 
 #if defined(__APPLE__)
 #include <GLUT/GLUT.h>
@@ -538,13 +541,13 @@ class Object
 {
     Shader* shader;
     Mesh* mesh;
-    vec2 position;
     float orientation;
 
     public:
         vec2 scaling;
         vec2 index;
         std::string gemType;
+        vec2 position;
         Object( Mesh* m, vec2 pos = vec2(0.0, 0.0), vec2 sca = vec2(1.0, 1.0),
                 float ori=0.0, vec2 i = vec2(0,0)) {
             mesh = m;
@@ -642,15 +645,13 @@ public:
         shader = new Shader();
 
         heartMat = new Material(shader, vec4(1,0,0));
-        Mesh* heartMesh = new Mesh(heartMat, new Heart(), "heart");
-        meshes.push_back(heartMesh);
+        meshes.push_back(new Mesh(heartMat, new Heart(), "heart"));
 
         starMat = new Material(shader, vec4(1, 1, 0));
         meshes.push_back(new Mesh(starMat, new Star(), "star"));
 
         hexMat = new Material(shader, vec4(0,.4,.8));
-        Mesh* hexMesh = new Mesh(hexMat, new Hex(), "hex");
-        meshes.push_back(hexMesh);
+        meshes.push_back(new Mesh(hexMat, new Hex(), "hex"));
 
         sqMat = new Material(shader, vec4(1, .5, 0));
         meshes.push_back(new Mesh(sqMat, new Quad(), "quad"));
@@ -700,11 +701,6 @@ public:
     void DeleteShape(int xInd, int yInd) {
         Object* o = objects[yInd][xInd];
         o->gemType = "exiting";
-        /*
-        objects[yInd][xInd] = new Object(voidMesh, o->getPos(), vec2(xscale, yscale), 0.0, o->index);
-        delete o;
-        */
-
     }
 
     void pulseHearts(double t, double dt) {
@@ -725,6 +721,7 @@ public:
                     } else {
                         objects[i][j] = new Object(voidMesh, o->getPos(), vec2(xscale, yscale), 0.0, o->index);
                         delete o;
+                        
                         Skyfall(j,i);
                     }
                 }
@@ -737,6 +734,9 @@ public:
 
     void swap_sub(vec2 sub) {
         swap(selected, sub);
+        if (!Legal(objects[selected.y][selected.x], objects[sub.y][sub.x])) {
+            swap(selected, sub);
+        }
     }
 
     void swap(vec2 sel, vec2 sub) {
@@ -745,12 +745,54 @@ public:
         vec2 diff = vec2( (selOb->getPos().x - subOb->getPos().x), (selOb->getPos().y - subOb->getPos().y) );
         selOb->Move(vec2(-diff.x, -diff.y), vec2(0,0), 0.0);
         subOb->Move(diff, vec2(0,0), 0.0);
+        subOb->index = vec2(sel.x, sel.y);
+        selOb->index = vec2(sub.x, sub.y);
         objects[sel.y][sel.x] = subOb;
         objects[sub.y][sub.x] = selOb;
     }
 
+    bool contains_three(std::vector<std::vector<vec2>> triples) {
+        for (int i = 0; i < triples.size(); i++) {
+            try {
+                printf("testing...\n");
+                std::vector<vec2> trip = triples[i];
+                Object* o1 = objects[trip[0].y][trip[0].x];
+                Object* o2 = objects[trip[1].y][trip[1].x];
+                Object* o3 = objects[trip[2].y][trip[2].x];
+                printf("%f; %f;\n %f; %f;\n %f; %f\n", o1->index.x, o1->index.y, o2->index.x, o2->index.y, o3->index.x, o3->index.y);
+            } catch (const std::out_of_range& oor) {
+               printf("oop, out of bounds\n");
+           } catch (int n) {
+               printf("%i", n);
+           } catch (...) {
+               printf("somthin else");
+           }
+        }
+        return true;
+    }
 
     bool Legal(Object* selOb, Object* subOb) {
+        vec2 pos1 = selOb->index;
+        vec2 pos2 = subOb->index;
+        if (pos1.x == pos2.x) {
+            printf("same x\n");
+            vec2 hi = vec2(pos1.x, std::max(pos1.y, pos2.y));
+            vec2 lo = vec2(pos1.x, std::min(pos1.y, pos2.y));
+            printf("hi: %f, %f\n", hi.x, hi.y);
+            printf("lo: %f, %f\n", lo.x, lo.y);
+            std::vector<std::vector<vec2>> triples = {{hi, lo, vec2(hi.x, hi.y+1)},
+                                                      {hi, vec2(hi.x, hi.y+1), vec2(hi.x, hi.y+2)},
+                                                      {hi, lo, vec2(hi.x, lo.y-1)},
+                                                      {lo, vec2(hi.x, lo.y-1), vec2(hi.x, lo.y-2)},
+                                                      {hi, vec2(hi.x+1, hi.y), vec2(hi.x-1, hi.y)},
+                                                      {hi, vec2(hi.x+1, hi.y), vec2(hi.x+2, hi.y)},
+                                                      {hi, vec2(hi.x-1, hi.y), vec2(hi.x-2, hi.y)},
+                                                      {lo, vec2(lo.x+1, lo.y), vec2(lo.x-1, lo.y)},
+                                                      {lo, vec2(lo.x+1, lo.y), vec2(lo.x+2, lo.y)},
+                                                      {lo, vec2(lo.x-1, lo.y), vec2(lo.x-2, lo.y)}
+            };
+            return contains_three(triples);
+        }
         return true;
     }
 
