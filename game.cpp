@@ -656,16 +656,11 @@ class Grid {
     std::vector<Mesh*> meshes;
     std::vector<std::vector<Object*>> objects;
     Material* heartMat;
-    Material* starMat;
-    Material* hexMat;
-    Material* sqMat;
-    Material* trMat;
-    Material* crMat;
-    Material* voidMat;
     Mesh* voidMesh;
     float xscale;
     float yscale;
     vec2 selected;
+    int delCounter;
 
 public:
 
@@ -680,27 +675,29 @@ public:
         float xinit = -1.0 + xscale; // position of the first point
         float yinit = -1.0 + yscale;
 
+        delCounter = 0;
+
         shader = new Shader();
 
         heartMat = new Material(shader, vec4(1,0,0));
         meshes.push_back(new Mesh(heartMat, new Heart(), "heart"));
 
-        starMat = new Material(shader, vec4(1, 1, 0));
+        Material* starMat = new Material(shader, vec4(1, 1, 0));
         meshes.push_back(new Mesh(starMat, new Star(), "star"));
 
-        hexMat = new Material(shader, vec4(0,.4,.8));
+        Material* hexMat = new Material(shader, vec4(0,.4,.8));
         meshes.push_back(new Mesh(hexMat, new Hex(), "hex"));
 
-        sqMat = new Material(shader, vec4(1, .5, 0));
+        Material* sqMat = new Material(shader, vec4(1, .5, 0));
         meshes.push_back(new Mesh(sqMat, new Quad(), "quad"));
 
-        trMat = new Material(shader, vec4(.5,0,1));
+        Material* trMat = new Material(shader, vec4(.5,0,1));
         meshes.push_back(new Mesh(trMat, new Triangle(), "triangle"));
 
-        crMat = new Material(shader, vec4(0,1,.5));
+        Material* crMat = new Material(shader, vec4(0,1,.5));
         meshes.push_back(new Mesh(crMat, new Cross(), "cross"));
 
-        voidMat = new Material(shader, vec4(0,0,0));
+        Material* voidMat = new Material(shader, vec4(0,0,0));
         voidMesh = new Mesh(voidMat, new Triangle(), "void");
 
         for (int j = 0; j < ycount; j++) {
@@ -724,7 +721,7 @@ public:
         }
 
         shader->Run();
-        contains_three();
+        removeThrees();
     }
 
     ~Grid() {
@@ -742,7 +739,11 @@ public:
 
     void DeleteShape(int xInd, int yInd) {
         Object* o = objects[yInd][xInd];
+        if (!o->deleting) {
+            delCounter += 1;
+        }
         o->deleting = true;
+
     }
 
     void pulseHearts(double t, double dt) {
@@ -763,38 +764,46 @@ public:
                     } else {
                         objects[i][j] = new Object(voidMesh, o->getPos(), vec2(xscale, yscale), 0.0, o->index);
                         delete o;
-                        
+                        delCounter -= 1;
                         Skyfall(j,i);
                     }
                 }
             }
         }
     }
-    void set_selected(vec2 sel) {
+    void SetSwapStart(vec2 sel) {
         selected = sel;
     }
 
-    void swap_sub(vec2 sub) {
+    void Swap(vec2 sub) {
+        /* swap two gems, assuming that you've already stored info on one of them*/
         swap(selected, sub);
+        // swap em back if its not legal (also takes care of remaval, skyfall etc if it is legal)
         if (!Legal(objects[selected.y][selected.x], objects[sub.y][sub.x])) {
             swap(selected, sub);
         }
     }
 
     void swap(vec2 sel, vec2 sub) {
+        /* swaps the gems at the two given indices*/
+        // get the objects
         Object* selOb = objects[sel.y][sel.x];
         Object* subOb = objects[sub.y][sub.x];
+        // calculate the distance between them
         vec2 diff = vec2( (selOb->getPos().x - subOb->getPos().x), (selOb->getPos().y - subOb->getPos().y) );
+        // move each to the position of the other
         selOb->Move(vec2(-diff.x, -diff.y), vec2(0,0), 0.0);
         subOb->Move(diff, vec2(0,0), 0.0);
+        // swap their index variables
         subOb->index = vec2(sel.x, sel.y);
         selOb->index = vec2(sub.x, sub.y);
+        //swap them in the objects array
         objects[sel.y][sel.x] = subOb;
         objects[sub.y][sub.x] = selOb;
     }
 
-    bool contains_three() {
-        // does anywhere on the board contain three?
+    bool removeThrees() {
+        /* deletes any three in a rows in its path, returns whether it found anything*/
         bool foundThree = false;
         for (int y = 0; y < objects.size(); y++) {
             for (int x = 0; x < objects[y].size(); x++) {
@@ -831,43 +840,36 @@ public:
     }
 
     bool Legal(Object* selOb, Object* subOb) {
+        /* determines if a move is legal or not*/
         vec2 pos1 = selOb->index;
         vec2 pos2 = subOb->index;
         if ((pos1.x == pos2.x) and (abs(pos1.y - pos2.y) == 1)) {
-            /*
-            if (contains_three()) {
-                while (contains_three()) {
-                }
-                return true;
-            }
-            return false;
-            */
-            return contains_three();
+            return removeThrees();
         } else if ( (pos1.y == pos2.y) and (abs(pos1.x - pos2.x) == 1)) {
-                return contains_three();
-            return false;
+            return removeThrees();
         } else {
             return false;
         }
     }
 
     void Skyfall(int col, int row) {
+        /* move all the gems when one is deleted*/
         for (int i = row; i < objects[row].size()-1; i++) {
             swap(vec2(col, i), vec2(col, i+1));
         }
         Object* orig = objects[objects.size()-1][col];
         Mesh* mesh = meshes[(rand() % meshes.size())];
-        objects[objects.size()-1][col] = new Object(mesh, orig->getPos(), vec2(orig->scaling.x, orig->scaling.y), 0.0, vec2(objects.size()-1, col));
+        objects[objects.size()-1][col] = new Object( mesh, orig->getPos(),
+                                                     vec2(orig->scaling.x, orig->scaling.y), 0.0, 
+                                                     vec2(objects.size()-1, col));
         delete orig;
+        if (delCounter == 0) {
+            removeThrees();
+        }
     }
 
 };
 
-
-Material* gMaterial;
-Geometry* gGeometry;
-Mesh* gMesh;
-Object* gObject;
 Grid* gGrid;
 
 // initialization, create an OpenGL context
@@ -886,11 +888,6 @@ void onInitialization()
 
 void onExit() 
 {
-    delete gMaterial;
-    delete gGeometry;
-    delete gMesh;
-    delete gObject;
-    delete gShader;
     delete gGrid;
 	printf("exit");
 }
@@ -902,10 +899,6 @@ void onDisplay()
 	glClearColor(0, 0, 0, 0); // background color 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the screen
 	
-    /*
-    gObject->Draw();
-    */
-
     gGrid->Draw();
 	glutSwapBuffers(); // exchange the two buffers
 	
@@ -935,16 +928,16 @@ void onMouse(int button, int state, int xOrig, int yOrig) {
 
     }
     else if ((button == GLUT_LEFT_BUTTON) and (state == GLUT_DOWN)) {
-        gGrid->set_selected(vec2(xIndex,yIndex));
+        gGrid->SetSwapStart(vec2(xIndex,yIndex));
     }
     else if ((button == GLUT_LEFT_BUTTON) and (state == GLUT_UP)){
-        gGrid->swap_sub(vec2(xIndex,yIndex));
+        gGrid->Swap(vec2(xIndex,yIndex));
     }
 }
 
 void onReshape(int winWidth0, int winHeight0) 
 {
-	camera.SetAspectRatio(winWidth0, winHeight0);
+
 	glViewport(0, 0, winWidth0, winHeight0);
     windowWidth = winWidth0;
     windowHeight = winHeight0;
