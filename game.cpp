@@ -586,6 +586,7 @@ class Object
         vec2 index;
         std::string gemType;
         vec2 position;
+        bool deleting;
         Object( Mesh* m, vec2 pos = vec2(0.0, 0.0), vec2 sca = vec2(1.0, 1.0),
                 float ori=0.0, vec2 i = vec2(0,0)) {
             mesh = m;
@@ -596,6 +597,8 @@ class Object
 
             gemType = mesh->getGemType();
             shader = mesh->getShader();
+            
+            deleting = false;
         }
         
         void UploadAttributes() {
@@ -721,6 +724,7 @@ public:
         }
 
         shader->Run();
+        contains_three();
     }
 
     ~Grid() {
@@ -738,22 +742,22 @@ public:
 
     void DeleteShape(int xInd, int yInd) {
         Object* o = objects[yInd][xInd];
-        o->gemType = "exiting";
+        o->deleting = true;
     }
 
     void pulseHearts(double t, double dt) {
         heartMat->UpdateColor(t);
-        shader->Run();
+        //shader->Run();
     }
     
     void Gyro(double t, double dt) {
         for ( int i = 0; i < objects.size(); i++) {
             for (int j = 0; j < objects[i].size(); j++ ) {
                 Object* o = objects[i][j];
-                if (o->gemType == "star") {
+                if ((o->gemType == "star") and (!o->deleting)) {
                     o->Move( vec2(0,0), vec2(0,0), dt*20.0);
                 }
-                if (o->gemType == "exiting") {
+                if (o->deleting) {
                     if ((o->scaling.x > 0.002) and (o->scaling.y > 0.002)) {
                         o->Move( vec2(0,0), vec2(-0.002, -0.002), dt*20);
                     } else {
@@ -789,22 +793,38 @@ public:
         objects[sub.y][sub.x] = selOb;
     }
 
-    bool contains_three(std::vector<std::vector<vec2>> triples) {
+    bool contains_three() {
+        // does anywhere on the board contain three?
         bool foundThree = false;
-        for (int i = 0; i < triples.size(); i++) {
-            try {
-                std::vector<vec2> trip = triples[i];
-                Object* o1 = objects.at(trip[0].y).at(trip[0].x);
-                Object* o2 = objects.at(trip[1].y).at(trip[1].x);
-                Object* o3 = objects.at(trip[2].y).at(trip[2].x);
-                if ((o1->gemType == o2->gemType) and (o1->gemType == o3->gemType)) {
-                    DeleteShape(o1->index.x, o1->index.y);
-                    DeleteShape(o2->index.x, o2->index.y);
-                    DeleteShape(o3->index.x, o3->index.y);
-                    foundThree = true;
+        for (int y = 0; y < objects.size(); y++) {
+            for (int x = 0; x < objects[y].size(); x++) {
+                // check the vertical
+                try {
+                    Object* o1 = objects.at(y-1).at(x);
+                    Object* o2 = objects.at(y).at(x);
+                    Object* o3 = objects.at(y+1).at(x);
+                    if ((o1->gemType == o2->gemType) and (o1->gemType == o3->gemType)) {
+                        DeleteShape(x, y-1);
+                        DeleteShape(x, y);
+                        DeleteShape(x, y+1);
+                        foundThree = true;
+                    }
+                } catch (const std::out_of_range& oor) {
+                    // nothing to do here, just means that we are near the edge
                 }
-            } catch (const std::out_of_range& oor) {
-                // nothing to do here, just means that we are near the edge
+                try {
+                    Object* o4 = objects.at(y).at(x-1);
+                    Object* o5 = objects.at(y).at(x);
+                    Object* o6 = objects.at(y).at(x+1);
+                    if ((o4->gemType == o5->gemType) and (o6->gemType == o4->gemType)) {
+                        DeleteShape(x-1, y);
+                        DeleteShape(x, y);
+                        DeleteShape(x+1, y);
+                        foundThree = true;
+                    }
+                } catch (const std::out_of_range& oor) {
+                    // nothing to do here, just means that we are near the edge
+                }
             }
         }
         return foundThree;
@@ -814,35 +834,18 @@ public:
         vec2 pos1 = selOb->index;
         vec2 pos2 = subOb->index;
         if ((pos1.x == pos2.x) and (abs(pos1.y - pos2.y) == 1)) {
-            vec2 hi = vec2(pos1.x, std::max(pos1.y, pos2.y));
-            vec2 lo = vec2(pos1.x, std::min(pos1.y, pos2.y));
-            std::vector<std::vector<vec2>> triples = {{hi, lo, vec2(hi.x, hi.y+1)},
-                                                      {hi, vec2(hi.x, hi.y+1), vec2(hi.x, hi.y+2)},
-                                                      {hi, lo, vec2(hi.x, lo.y-1)},
-                                                      {lo, vec2(hi.x, lo.y-1), vec2(hi.x, lo.y-2)},
-                                                      {hi, vec2(hi.x+1, hi.y), vec2(hi.x-1, hi.y)},
-                                                      {hi, vec2(hi.x+1, hi.y), vec2(hi.x+2, hi.y)},
-                                                      {hi, vec2(hi.x-1, hi.y), vec2(hi.x-2, hi.y)},
-                                                      {lo, vec2(lo.x+1, lo.y), vec2(lo.x-1, lo.y)},
-                                                      {lo, vec2(lo.x+1, lo.y), vec2(lo.x+2, lo.y)},
-                                                      {lo, vec2(lo.x-1, lo.y), vec2(lo.x-2, lo.y)}
-            };
-            return contains_three(triples);
+            /*
+            if (contains_three()) {
+                while (contains_three()) {
+                }
+                return true;
+            }
+            return false;
+            */
+            return contains_three();
         } else if ( (pos1.y == pos2.y) and (abs(pos1.x - pos2.x) == 1)) {
-            vec2 hi = vec2(std::max(pos1.x, pos2.x), pos1.y );
-            vec2 lo = vec2(std::min(pos1.x, pos2.x), pos1.y );
-            std::vector<std::vector<vec2>> triples = {{hi, lo, vec2(hi.x+1, hi.y)},
-                                                      {hi, vec2(hi.x+1, hi.y), vec2(hi.x+2, hi.y)},
-                                                      {hi, lo, vec2(lo.x-1, lo.y)},
-                                                      {lo, vec2(lo.x-1, lo.y), vec2(lo.x-2, lo.y)},
-                                                      {hi, vec2(hi.x, hi.y+1), vec2(hi.x, hi.y-1)},
-                                                      {hi, vec2(hi.x, hi.y+1), vec2(hi.x, hi.y+2)},
-                                                      {hi, vec2(hi.x, hi.y-1), vec2(hi.x, hi.y-2)},
-                                                      {lo, vec2(lo.x, lo.y+1), vec2(lo.x, lo.y-1)},
-                                                      {lo, vec2(lo.x, lo.y+1), vec2(lo.x, lo.y+2)},
-                                                      {lo, vec2(lo.x, lo.y-1), vec2(lo.x, lo.y-2)}};
-            return contains_three(triples);
-
+                return contains_three();
+            return false;
         } else {
             return false;
         }
